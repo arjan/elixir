@@ -650,6 +650,11 @@ defmodule Code do
       when non-existing atoms are found by the tokenizer.
       Defaults to `false`.
 
+    * `:nonexisting_atom_callback` - When `existing_atoms_only: true`
+      is set, and `nonexisting_atom_callback: &fun/4` is given, the
+      function will get called when a non-existing is encountered,
+      instead of the default behaviour of raising an error.
+
     * `:warn_on_unnecessary_quotes` - when `false`, does not warn
       when atoms, keywords or calls have unnecessary quotes on
       them. Defaults to `true`.

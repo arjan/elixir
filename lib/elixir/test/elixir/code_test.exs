@@ -153,6 +153,17 @@ defmodule CodeTest do
                {:error, {1, "unsafe atom does not exist: ", "there_is_no_such_atom"}}
     end
 
+    test "nonexisting_atom_callback gets called with :existing_atoms_only" do
+      ref = make_ref()
+      callback = fn atom, line, column, file -> {ref, atom, line, column, file} end
+
+      assert {:ok, {^ref, 'there_is_no_such_atom', 1, 1, "nofile"}} =
+               Code.string_to_quoted(":there_is_no_such_atom",
+                 existing_atoms_only: true,
+                 nonexisting_atom_callback: callback
+               )
+    end
+
     test "raises on errors when string_to_quoted!/2 is used" do
       assert Code.string_to_quoted!("1 + 2") == {:+, [line: 1], [1, 2]}
 

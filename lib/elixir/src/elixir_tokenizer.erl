@@ -124,6 +124,8 @@ tokenize(String, Line, Column, Opts) ->
         Acc#elixir_tokenizer{file=File};
       ({existing_atoms_only, ExistingAtomsOnly}, Acc) when is_boolean(ExistingAtomsOnly) ->
         Acc#elixir_tokenizer{existing_atoms_only=ExistingAtomsOnly};
+      ({nonexisting_atom_callback, NonexistingAtomCallback}, Acc) when is_function(NonexistingAtomCallback) ->
+        Acc#elixir_tokenizer{nonexisting_atom_callback=NonexistingAtomCallback};
       ({check_terminators, CheckTerminators}, Acc) when is_boolean(CheckTerminators) ->
         Acc#elixir_tokenizer{check_terminators=CheckTerminators};
       ({preserve_comments, PreserveComments}, Acc) when is_function(PreserveComments) ->
@@ -811,22 +813,28 @@ unsafe_to_atom(Part, Line, Column, #elixir_tokenizer{}) when
     is_binary(Part) andalso byte_size(Part) > 255;
     is_list(Part) andalso length(Part) > 255 ->
   {error, {Line, Column, "atom length must be less than system limit: ", elixir_utils:characters_to_list(Part)}};
-unsafe_to_atom(Binary, Line, Column, #elixir_tokenizer{existing_atoms_only=true}) when is_binary(Binary) ->
+unsafe_to_atom(Binary, Line, Column, #elixir_tokenizer{existing_atoms_only=true} = Scope) when is_binary(Binary) ->
   try
     {ok, binary_to_existing_atom(Binary, utf8)}
   catch
-    error:badarg -> {error, {Line, Column, "unsafe atom does not exist: ", elixir_utils:characters_to_list(Binary)}}
+    error:badarg -> handle_nonexisting_atom(elixir_utils:characters_to_list(Binary), Line, Column, Scope)
   end;
 unsafe_to_atom(Binary, _Line, _Column, #elixir_tokenizer{}) when is_binary(Binary) ->
   {ok, binary_to_atom(Binary, utf8)};
-unsafe_to_atom(List, Line, Column, #elixir_tokenizer{existing_atoms_only=true}) when is_list(List) ->
+unsafe_to_atom(List, Line, Column, #elixir_tokenizer{existing_atoms_only=true} = Scope) when is_list(List) ->
   try
     {ok, list_to_existing_atom(List)}
   catch
-    error:badarg -> {error, {Line, Column, "unsafe atom does not exist: ", List}}
+    error:badarg -> handle_nonexisting_atom(List, Line, Column, Scope)
   end;
 unsafe_to_atom(List, _Line, _Column, #elixir_tokenizer{}) when is_list(List) ->
   {ok, list_to_atom(List)}.
+
+handle_nonexisting_atom(AtomString, Line, Column, #elixir_tokenizer{nonexisting_atom_callback=nil}) ->
+  {error, {Line, Column, "unsafe atom does not exist: ", AtomString}};
+handle_nonexisting_atom(AtomString, Line, Column, #elixir_tokenizer{nonexisting_atom_callback=NonexistingAtomCallback} = Scope)
+  when is_function(NonexistingAtomCallback) ->
+    {ok, apply(NonexistingAtomCallback, [AtomString, Line, Column, Scope#elixir_tokenizer.file])}.
 
 collect_modifiers([H | T], Buffer) when ?is_downcase(H) or ?is_upcase(H) ->
   collect_modifiers(T, [H | Buffer]);
