@@ -138,7 +138,19 @@ tokenize(String, Line, Column, Opts) ->
         Acc
     end, #elixir_tokenizer{identifier_tokenizer=IdentifierTokenizer}, Opts),
 
+  validate_scope(Scope),
   tokenize(String, Line, Column, Scope, []).
+
+validate_scope(Scope) ->
+  if
+    not Scope#elixir_tokenizer.existing_atoms_only andalso is_function(Scope#elixir_tokenizer.nonexisting_atom_callback) ->
+      elixir_errors:erl_warn(
+        none,
+        Scope#elixir_tokenizer.file,
+        "nonexisting_atom_callback can only be used with existing_atoms_only: true");
+    true ->
+     ok
+  end.
 
 tokenize(String, Line, Opts) ->
   tokenize(String, Line, 1, Opts).

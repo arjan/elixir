@@ -12,6 +12,10 @@ defmodule CodeTest do
     end
   end
 
+  defp capture_err(fun) do
+    ExUnit.CaptureIO.capture_io(:stderr, fun)
+  end
+
   contents =
     quote do
       defmodule CodeTest.Sample do
@@ -162,6 +166,14 @@ defmodule CodeTest do
                  existing_atoms_only: true,
                  nonexisting_atom_callback: callback
                )
+    end
+
+    test "nonexisting_atom_callback option raises without existing_atoms_only: true" do
+      assert capture_err(fn ->
+               Code.string_to_quoted(":there_is_no_such_other_atom",
+                 nonexisting_atom_callback: fn _, _, _, _ -> :ok end
+               )
+             end) =~ ~r/can only be used with/i
     end
 
     test "raises on errors when string_to_quoted!/2 is used" do
